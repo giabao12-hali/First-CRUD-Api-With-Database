@@ -4,6 +4,7 @@ using FirstApi.Models;
 using FirstApi.Models.Dto;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Xml.XPath;
 
 namespace FirstApi.Controllers
@@ -13,9 +14,11 @@ namespace FirstApi.Controllers
 	public class UserApiController : ControllerBase
 	{
 		private readonly ILogging _logger;
-		public UserApiController(ILogging logger)
+		private readonly DataContext _context;
+		public UserApiController(ILogging logger, DataContext context)
 		{
 			_logger = logger;
+			_context = context;
 		}
 
 
@@ -24,7 +27,7 @@ namespace FirstApi.Controllers
 		public ActionResult<IEnumerable<UserDto>> GetUsers()
 		{
 			_logger.Log("Getting All Users", "");
-			return Ok(UserStore.userList);
+			return Ok(_context.Users.ToList());
 		}
 
 		[HttpGet("{id:int}", Name = "GetUserById")]
@@ -38,7 +41,7 @@ namespace FirstApi.Controllers
 				_logger.Log("Get User Error by Id - Not Found ID " + id, "error");
 				return BadRequest();
 			}
-			var users = UserStore.userList.FirstOrDefault(u => u.Id == id);
+			var users = _context.Users.FirstOrDefault(u => u.Id == id);
 			if(users == null)
 			{
 				return NotFound();
@@ -58,7 +61,7 @@ namespace FirstApi.Controllers
 			//}
 
 			//custom validation
-			if(UserStore.userList.FirstOrDefault(u => u.Name.ToLower() == userDto.Name.ToLower()) != null)
+			if(_context.Users.FirstOrDefault(u => u.Name.ToLower() == userDto.Name.ToLower()) != null)
 			{
 				ModelState.AddModelError("UserError", "Tên đã có!");
 				return BadRequest(ModelState);
@@ -72,8 +75,19 @@ namespace FirstApi.Controllers
 			{
 				return StatusCode(StatusCodes.Status500InternalServerError);
 			}
-			userDto.Id = UserStore.userList.OrderByDescending(u => u.Id).FirstOrDefault().Id + 1;
-			UserStore.userList.Add(userDto);
+			User model = new()
+			{
+				Amenity = userDto.Amenity,
+				Name = userDto.Name,
+				Rate = userDto.Rate,
+				Sqft = userDto.Sqft,
+				Id = userDto.Id,
+				ImageUrl = userDto.ImageUrl,
+				Occupancy = userDto.Occupancy,
+				Details = userDto.Details,
+			};
+			_context.Users.Add(model);
+			_context.SaveChanges();
 
 			return CreatedAtRoute("GetUserById", new {id = userDto.Id}, userDto);
 		}
@@ -88,12 +102,13 @@ namespace FirstApi.Controllers
 			{
 				return BadRequest();
 			}
-			var user = UserStore.userList.FirstOrDefault(u => u.Id == id);
+			var user = _context.Users.FirstOrDefault(u => u.Id == id);
 			if(user == null)
 			{
 				return NotFound();
 			}
-			UserStore.userList.Remove(user);
+			_context.Users.Remove(user);
+			_context.SaveChanges();
 			return NoContent();
 		}
 
@@ -107,11 +122,23 @@ namespace FirstApi.Controllers
 			{
 				return BadRequest();
 			}
-			var users = UserStore.userList.FirstOrDefault(u => u.Id == id);
-			users.Name = userDto.Name;
-			users.Sqft = userDto.Sqft;
-			users.Occupancy = userDto.Occupancy;
-
+			//var users = UserStore.userList.FirstOrDefault(u => u.Id == id);
+			//users.Name = userDto.Name;
+			//users.Sqft = userDto.Sqft;
+			//users.Occupancy = userDto.Occupancy;
+			User model = new()
+			{
+				Amenity = userDto.Amenity,
+				Name = userDto.Name,
+				Rate = userDto.Rate,
+				Sqft = userDto.Sqft,
+				Id = userDto.Id,
+				ImageUrl = userDto.ImageUrl,
+				Occupancy = userDto.Occupancy,
+				Details = userDto.Details,
+			};
+			_context.Users.Update(model);
+			_context.SaveChanges();
 			return NoContent();
 		}
 
@@ -125,12 +152,38 @@ namespace FirstApi.Controllers
 			{
 				return BadRequest();
 			}
-			var users = UserStore.userList.FirstOrDefault(u => u.Id == id);
-			if(users == null)
+			var users = _context.Users.AsNoTracking().FirstOrDefault(u => u.Id == id);
+
+			UserDto userDto = new()
+			{
+				Amenity = users.Amenity,
+				Name = users.Name,
+				Rate = users.Rate,
+				Sqft = users.Sqft,
+				Id = users.Id,
+				ImageUrl = users.ImageUrl,
+				Occupancy = users.Occupancy,
+				Details = users.Details,
+			};
+			if (users == null)
 			{
 				return BadRequest();
 			}
-			pathDTO.ApplyTo(users, ModelState);
+			pathDTO.ApplyTo(userDto, ModelState);
+			User model = new()
+			{
+				Amenity = userDto.Amenity,
+				Name = userDto.Name,
+				Rate = userDto.Rate,
+				Sqft = userDto.Sqft,
+				Id = userDto.Id,
+				ImageUrl = userDto.ImageUrl,
+				Occupancy = userDto.Occupancy,
+				Details = userDto.Details,
+			};
+			_context.Users.Update(model);
+			_context.SaveChanges();
+
 			if (!ModelState.IsValid)
 			{
 				return BadRequest(ModelState);
