@@ -1,0 +1,6 @@
+# FIRST CRUD API with Database
+1. SQL SERVER
+2. Change ConnectionStrings in appsettings.json
+   
+4. Enjoy
+5. Reference: https://youtu.be/_uZYOgzYheU
