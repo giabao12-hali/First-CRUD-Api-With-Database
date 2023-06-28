@@ -1,7 +1,10 @@
 ﻿using FirstApi.Data;
+using FirstApi.Logging;
 using FirstApi.Models;
 using FirstApi.Models.Dto;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using System.Xml.XPath;
 
 namespace FirstApi.Controllers
 {
@@ -9,10 +12,18 @@ namespace FirstApi.Controllers
 	[ApiController]
 	public class UserApiController : ControllerBase
 	{
+		private readonly ILogging _logger;
+		public UserApiController(ILogging logger)
+		{
+			_logger = logger;
+		}
+
+
 		[HttpGet]
 		[ProducesResponseType(StatusCodes.Status200OK)]
 		public ActionResult<IEnumerable<UserDto>> GetUsers()
 		{
+			_logger.Log("Getting All Users", "");
 			return Ok(UserStore.userList);
 		}
 
@@ -24,6 +35,7 @@ namespace FirstApi.Controllers
 		{
 			if(id == 0)
 			{
+				_logger.Log("Get User Error by Id - Not Found ID " + id, "error");
 				return BadRequest();
 			}
 			var users = UserStore.userList.FirstOrDefault(u => u.Id == id);
@@ -82,6 +94,47 @@ namespace FirstApi.Controllers
 				return NotFound();
 			}
 			UserStore.userList.Remove(user);
+			return NoContent();
+		}
+
+		[HttpPut("{id:int}", Name = "UpdateUserOnOneRecord")]
+		[ProducesResponseType(StatusCodes.Status204NoContent)]
+		[ProducesResponseType(StatusCodes.Status404NotFound)]
+		[ProducesResponseType(StatusCodes.Status400BadRequest)]
+		public IActionResult UpdateUserOnOneRecord(int id, [FromBody] UserDto userDto)
+		{
+			if(userDto == null || id != userDto.Id)
+			{
+				return BadRequest();
+			}
+			var users = UserStore.userList.FirstOrDefault(u => u.Id == id);
+			users.Name = userDto.Name;
+			users.Sqft = userDto.Sqft;
+			users.Occupancy = userDto.Occupancy;
+
+			return NoContent();
+		}
+
+		[HttpPatch("{id:int}", Name = "UpdatePartialUserOnOneRecord")]
+		[ProducesResponseType(StatusCodes.Status204NoContent)]
+		[ProducesResponseType(StatusCodes.Status404NotFound)]
+		[ProducesResponseType(StatusCodes.Status400BadRequest)]
+		public IActionResult UpdatePartialUserOnOneRecord(int id, JsonPatchDocument<UserDto> pathDTO)
+		{
+			if(pathDTO == null || id == 0)
+			{
+				return BadRequest();
+			}
+			var users = UserStore.userList.FirstOrDefault(u => u.Id == id);
+			if(users == null)
+			{
+				return BadRequest();
+			}
+			pathDTO.ApplyTo(users, ModelState);
+			if (!ModelState.IsValid)
+			{
+				return BadRequest(ModelState);
+			}
 			return NoContent();
 		}
 	}
